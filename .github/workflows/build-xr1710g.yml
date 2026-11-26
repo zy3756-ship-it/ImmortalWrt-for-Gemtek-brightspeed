@@ -1,0 +1,36 @@
+name: Build XR1710G ImmortalWrt
+on:
+  workflow_dispatch:
+env:
+  TZ: Asia/Shanghai
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libncurses-dev gawk flex bison openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf git wget curl rsync unzip python3-distutils
+      - name: Fix golang host
+        run: bash scripts/fix-stale-golang-host.sh
+      - name: Feeds update & install
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+      - name: Load XR1710G default config
+        run: |
+          cp 1710.config .config
+          bash scripts/set-build-version.sh .config
+          make defconfig
+      - name: Pre-download source packages
+        run: make download -j$(nproc)
+      - name: Compile firmware
+        run: make -j$(nproc) world 2>&1 | tee build.log
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: XR1710G-Firmware
+          path: bin/targets/airoha/an7581/
+          
